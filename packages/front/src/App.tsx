@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import json from "./utils/My39NFT.json";
 import { ethers } from "ethers";
+import axios from "axios";
 
 const contractAddress = import.meta.env.VITE_TEST_CONTRACT_ADDRESS;
 const abi = json.abi;
@@ -9,8 +10,10 @@ const abi = json.abi;
 function App() {
   const [currentAccount, setCurrentAccount] = useState("");
   const [addressInput, setAddressInput] = useState("");
-  const [tokenUri, setTokenUri] = useState<string>("");
   const [tokenIdInput, setTokenIdInput] = useState("");
+  const [tokenUri, setTokenUri] = useState<string>("");
+  const [openseaUrl, setOpenseaUrl] = useState<string>("");
+  const [metadataUrl, setMetadateUrl] = useState<string>("");
 
   const checkIfWalletIsConnected = async () => {
     const { ethereum } = window as any;
@@ -71,13 +74,25 @@ function App() {
     }
   };
 
+  const urlPrefix = "https://ipfs.io/ipfs/";
+  const openseaUrlPrefix = `https://testnets.opensea.io/ja/assets/amoy/${contractAddress}/`;
+
+  interface ImageData {
+    image: string;
+  }
+
   const getTokenURI = async (tokenId: number) => {
     const { ethereum } = window as any;
     if (ethereum) {
       const provider = new ethers.BrowserProvider(ethereum);
       const contract = new ethers.Contract(contractAddress, abi, provider);
       const tokenURI = await contract.tokenURI(tokenId);
-      setTokenUri(tokenURI);
+      const parsedPath = tokenURI.replace("ipfs://", "");
+      const res = await axios.get<ImageData>(`${urlPrefix}${parsedPath}`);
+      const parsedImage = res.data.image.replace("ipfs://", "");
+      setMetadateUrl(`${urlPrefix}${parsedPath}`);
+      setTokenUri(`${urlPrefix}${parsedImage}`);
+      setOpenseaUrl(`${openseaUrlPrefix}${tokenId}`);
     } else {
       console.error("ethereum objectがない");
       alert("存在しません");
@@ -129,11 +144,18 @@ function App() {
             取得
           </button>
         </div>
-        {tokenUri && <div className="py-4 border-cyan-400">{tokenUri}</div>}
-        <img
-          src="https://ipfs.io/ipfs/bafybeibojnavdaoarjl4wlwauw2p6ebzrws2iyrn4qlcgs6yns5xnrjbma/balloon39.jpg"
-          alt="Content from IPFS"
-        />
+        {tokenUri && (
+          <>
+            <div className="py-4 border-cyan-400">
+              メタデータ：<a href={metadataUrl}>{metadataUrl}</a>
+            </div>
+            <div className="w-40 mx-auto border-4 hover:border-teal-400">
+              <a href={openseaUrl} className="">
+                <img src={tokenUri} alt="Content from IPFS" className="" />
+              </a>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
